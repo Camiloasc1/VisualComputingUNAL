@@ -1,13 +1,13 @@
 package cv.flocking;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import processing.core.PApplet;
 import processing.core.PShape;
 import processing.core.PVector;
 import remixlab.dandelion.geom.Vec;
 import remixlab.proscene.Scene;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main extends PApplet {
     private static int WIDTH = 640;
