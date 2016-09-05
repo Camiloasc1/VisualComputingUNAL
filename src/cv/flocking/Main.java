@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Main extends PApplet {
-    private static int WIDTH = 640;
-    private static int HEIGHT = 360;
+    private static int WIDTH = 800;
+    private static int HEIGHT = 800;
 
     private static int fWidth = 500;
     private static int fHeight = 500;
@@ -180,21 +180,17 @@ public class Main extends PApplet {
         }
 
         void render() {
-            // Draw a triangle rotated in the direction of velocity
-            float theta = velocity.heading2D() + radians(90);
-            // heading2D() above is now heading() but leaving old syntax until
-            // Processing.js catches up
-
             fill(200, 100);
             stroke(255);
             pushMatrix();
             translate(location.x, location.y, location.z);
-            rotate(theta);
-//			beginShape(TRIANGLES);
-//			vertex(0, -r * 2);
-//			vertex(-r, r * 2);
-//			vertex(r, r * 2);
-//			endShape();
+            rotateZ(PI);
+            rotateY(new PVector(velocity.x, velocity.z).heading() - PI / 2);
+            // beginShape(TRIANGLES);
+            // vertex(0, -r * 2);
+            // vertex(-r, r * 2);
+            // vertex(r, r * 2);
+            // endShape();
             scale(0.25f);
             shape(bird);
             popMatrix();
@@ -219,18 +215,18 @@ public class Main extends PApplet {
                 f.div(d * d);
                 applyForce(f);
             }
-//			if (location.x < -r)
-//				location.x = fWidth + r;
-//			if (location.y < -r)
-//				location.y = fHeight + r;
-//			if (location.z < -r)
-//				location.z = fDepth + r;
-//			if (location.x > fWidth + r)
-//				location.x = -r;
-//			if (location.y > fHeight + r)
-//				location.y = -r;
-//			if (location.z > fDepth + r)
-//				location.z = -r;
+            // if (location.x < -r)
+            // location.x = fWidth + r;
+            // if (location.y < -r)
+            // location.y = fHeight + r;
+            // if (location.z < -r)
+            // location.z = fDepth + r;
+            // if (location.x > fWidth + r)
+            // location.x = -r;
+            // if (location.y > fHeight + r)
+            // location.y = -r;
+            // if (location.z > fDepth + r)
+            // location.z = -r;
         }
 
         // Separation
