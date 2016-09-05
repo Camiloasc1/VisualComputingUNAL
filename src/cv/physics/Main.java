@@ -1,17 +1,15 @@
 package cv.physics;
 
+import fisica.*;
 import processing.core.PApplet;
-import processing.core.PVector;
-
-import java.util.HashSet;
-import java.util.Set;
 
 public class Main extends PApplet {
 
-    private static int WIDTH = 600;
-    private static int HEIGHT = 600;
+    private static int WIDTH = 800;
+    private static int HEIGHT = 800;
 
-    private PhysicCircle circles;
+    private FWorld world;
+    private FPoly poly;
 
     public void settings() {
         size(WIDTH, HEIGHT, P2D);
@@ -25,111 +23,90 @@ public class Main extends PApplet {
         super.setup();
         loop();
 
-        circles = new PhysicCircle(new PVector(WIDTH / 2, HEIGHT / 2), 256);
-        circles.add(new PhysicCircle(new PVector(WIDTH / 2 - 128, HEIGHT / 2), 128));
-        circles.add(new PhysicCircle(new PVector(WIDTH / 2 + 128, HEIGHT / 2), 128));
-        circles.add(new PhysicCircle(new PVector(WIDTH / 2, HEIGHT / 2 - 160), 64));
-        circles.add(new PhysicCircle(new PVector(WIDTH / 2, HEIGHT / 2 + 160), 64));
+        Fisica.init(this);
+        world = new FWorld();
+        world.setEdges();
+        {
+            FCircle circle = new FCircle(30);
+            circle.setPosition(WIDTH / 2, HEIGHT / 2);
+            circle.setRestitution(0.8f);
+            circle.setStatic(true);
+            world.add(circle);
+        }
+        {
+            FBox box = new FBox(100, 10);
+            box.setPosition(1f / 4f * WIDTH, HEIGHT / 2);
+            box.setStatic(true);
+            world.add(box);
+        }
+        {
+            FBox box = new FBox(100, 10);
+            box.setPosition(3f / 4f * WIDTH, HEIGHT / 2);
+            box.setStatic(true);
+            world.add(box);
+        }
+        {
+            FCompound compound = new FCompound();
+            compound.setPosition(WIDTH / 2, HEIGHT / 2);
+            {
+                FCircle circle = new FCircle(40);
+                circle.setPosition(0, 0);
+                circle.setRestitution(0.8f);
+                compound.addBody(circle);
+            }
+            {
+                FCircle circle = new FCircle(30);
+                circle.setPosition(0, -10);
+                circle.setRestitution(0.8f);
+                compound.addBody(circle);
+            }
+            {
+                FCircle circle = new FCircle(20);
+                circle.setPosition(0, -20);
+                circle.setRestitution(0.8f);
+                compound.addBody(circle);
+            }
+            world.add(compound);
+        }
     }
 
     public void draw() {
         background(0);
-        Ray ray = new Ray(new PVector(0, HEIGHT), new PVector(mouseX, mouseY));
-        circles.draw(ray);
-        ray.draw();
+
+        if (frameCount % 100 == 0) {
+            FCircle circle = new FCircle(30);
+            circle.setPosition(random(0, WIDTH), 30);
+            circle.setRestitution(0.8f);
+            world.add(circle);
+
+            FBlob blob = new FBlob();
+            int size = (int) random(10, 50);
+            blob.setAsCircle(random(0, WIDTH), 30, size, size);
+            blob.setFill(random(0, 255), random(0, 255), random(0, 255));
+            world.add(blob);
+        }
+
+        world.step();
+        world.draw();
     }
 
-    class PhysicCircle {
-        private Set<PhysicCircle> circles;
-        private PVector pos;
-        private float r;
-
-        public PhysicCircle(PVector pos, float r) {
-            super();
-            circles = new HashSet<>();
-            this.pos = pos;
-            this.r = r;
-        }
-
-        public boolean add(PhysicCircle c) {
-            return circles.add(c);
-        }
-
-        public void draw(Ray ray) {
-            boolean collides = rayCast(ray);
-            pushStyle();
-            {
-                stroke(255);
-                fill(collides ? 128 : 0);
-                ellipse(pos.x, pos.y, 2 * r, 2 * r);
-            }
-            popStyle();
-            for (PhysicCircle c : circles) {
-                c.draw(collides ? ray : null);
-            }
-        }
-
-        public boolean rayCast(Ray ray) {
-            if (ray == null)
-                return false;
-
-            PVector d = ray.getVector();
-            PVector e = ray.getStart().sub(pos);
-
-            float a = d.dot(d);
-            float b = 2 * e.dot(d);
-            float c = e.dot(e) - r * r;
-
-            float discriminant = b * b - 4 * a * c;
-            if (discriminant < 0)
-                return false;
-            else {
-                discriminant = sqrt(discriminant);
-                float t1 = (-b - discriminant) / (2 * a);
-                float t2 = (-b + discriminant) / (2 * a);
-
-                if (0 <= t1 && t1 <= 1) {
-                    return true;
-                }
-
-                if (0 <= t2 && t2 <= 1) {
-                    return true;
-                }
-            }
-            return false;
+    @Override
+    public void mouseDragged() {
+        if (poly == null) {
+            poly = new FPoly();
+            poly.setPosition(WIDTH / 2, HEIGHT / 2 + 32);
+            poly.setStatic(true);
+            poly.vertex(mouseX, mouseY);
+            world.add(poly);
         }
     }
 
-    class Ray {
-        private PVector start;
-        private PVector end;
-
-        public Ray(PVector start, PVector end) {
-            super();
-            this.start = start;
-            this.end = end;
-        }
-
-        public PVector getStart() {
-            return start.copy();
-        }
-
-        public PVector getEnd() {
-            return end.copy();
-        }
-
-        public PVector getVector() {
-            return end.copy().sub(start);
-        }
-
-        public void draw() {
-            pushStyle();
-            {
-                stroke(255);
-                fill(0);
-                line(start.x, start.y, end.x, end.y);
-            }
-            popStyle();
+    @Override
+    public void mouseReleased() {
+        if (poly != null) {
+            poly.setStatic(false);
+            poly = null;
         }
     }
+
 }
