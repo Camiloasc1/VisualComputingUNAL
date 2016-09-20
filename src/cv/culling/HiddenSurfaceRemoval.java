@@ -16,8 +16,9 @@ public class HiddenSurfaceRemoval extends PApplet {
     public static final int WIDTH = 600;
     public static final int HEIGHT = 600;
     private Scene scene, auxScene;
-    private List<PShape> shapes;
+    private Collection<PShape> shapes;
     private Map<PShape, AABB> aabbs;
+    private Octree octree;
 
     @Override
     public void settings() {
@@ -39,7 +40,10 @@ public class HiddenSurfaceRemoval extends PApplet {
         // Vec p2 = new Vec(500, 250, 250);
 
         // TODO: To build Octree
-
+        octree = new Octree(1024, 5); // Ends in 32x32.
+        for (AABB aabb : aabbs.values()) {
+            octree.addAABB(aabb);
+        }
     }
 
     private void buildComplexScene() {
@@ -123,7 +127,7 @@ public class HiddenSurfaceRemoval extends PApplet {
 
         for (PShape edge : box) {
             shapes.add(edge);
-            aabbs.put(edge, new AABB(edge.getVertex(0), edge.getVertex(2)));
+            aabbs.put(edge, new AABB(edge.getVertex(0), edge.getVertex(2), edge));
         }
     }
 
@@ -131,7 +135,7 @@ public class HiddenSurfaceRemoval extends PApplet {
         handleMouse();
         surface.setTitle("Frames: " + frameRate);
 
-        culling();
+        cull();
 
         scene.pg().beginDraw();
         scene.beginDraw();
@@ -181,19 +185,37 @@ public class HiddenSurfaceRemoval extends PApplet {
         PApplet.main(HiddenSurfaceRemoval.class.getCanonicalName());
     }
 
-    private void culling() {
+    private void cull() {
+        boolean useBackface = false;
+        boolean useFrustum = false;
+        boolean useOctree = true;
+
         Camera camera = scene.camera();
+        Collection<PShape> shapesToCull = shapes;
+        if (useOctree) {
+            octree.cull(camera);
+            shapesToCull = new LinkedList<>();
+            for (AABB aabb : octree.getIncluded()) {
+                shapesToCull.add(aabb.getShape());
+            }
+            for (AABB aabb : octree.getExcluded()) {
+                aabb.getShape().setVisible(false);
+            }
+        }
+
         boolean visible;
-        for (PShape shape : shapes) {
+        for (PShape shape : shapesToCull) {
             visible = true;
 
             // TODO: Back-Face Culling
             // scene.camera().isFaceFrontFacing(arg0, arg1);
-            visible &= camera.isFaceFrontFacing(cameraToShape(camera, shape), getShapeNormal(shape));
+            if (useBackface)
+                visible &= camera.isFaceFrontFacing(cameraToShape(camera, shape), getShapeNormal(shape));
 
             // TODO: View Frustum Culling
             // scene.camera().boxVisibility(arg0, arg1);
-            visible &= scene.camera().boxVisibility(aabbs.get(shape).getP1(), aabbs.get(shape).getP2()) != Eye.Visibility.INVISIBLE;
+            if (useFrustum)
+                visible &= scene.camera().boxVisibility(aabbs.get(shape).getP1(), aabbs.get(shape).getP2()) != Eye.Visibility.INVISIBLE;
 
             shape.setVisible(visible);
         }
@@ -225,28 +247,37 @@ public class HiddenSurfaceRemoval extends PApplet {
 class AABB {
     private Vec p1;
     private Vec p2;
+    private PShape shape;
 
     public AABB(Vec p1, Vec p2) {
+        this(p1, p2, null);
+    }
+
+    public AABB(Vec p1, Vec p2, PShape shape) {
         this.p1 = p1;
         this.p2 = p2;
+        this.shape = shape;
         fixup();
     }
 
     public AABB(PVector p1, PVector p2) {
-        this.p1 = Scene.toVec(p1);
-        this.p2 = Scene.toVec(p2);
-        fixup();
+        this(p1, p2, null);
     }
 
-    public AABB(float x1, float y1, float z1, float x2, float y2, float z2) {
-        p1 = new Vec(x1, y1, z1);
-        p2 = new Vec(x2, y2, z2);
+    public AABB(PVector p1, PVector p2, PShape shape) {
+        this.p1 = Scene.toVec(p1);
+        this.p2 = Scene.toVec(p2);
+        this.shape = shape;
         fixup();
     }
 
     private void fixup() {
-        p1.set(PApplet.min(p1.x(), p2.x()), PApplet.min(p1.y(), p2.y()), PApplet.min(p1.z(), p2.z()));
-        p2.set(PApplet.max(p1.x(), p2.x()), PApplet.max(p1.y(), p2.y()), PApplet.max(p1.z(), p2.z()));
+        Vec a = new Vec();
+        Vec b = new Vec();
+        a.set(PApplet.min(p1.x(), p2.x()), PApplet.min(p1.y(), p2.y()), PApplet.min(p1.z(), p2.z()));
+        b.set(PApplet.max(p1.x(), p2.x()), PApplet.max(p1.y(), p2.y()), PApplet.max(p1.z(), p2.z()));
+        p1 = a;
+        p2 = b;
     }
 
     public Vec getP1() {
@@ -265,10 +296,26 @@ class AABB {
         this.p2 = p2;
     }
 
+    public PShape getShape() {
+        return shape;
+    }
+
+    public void setShape(PShape shape) {
+        this.shape = shape;
+    }
+
     public Vec getVector() {
         Vec v = new Vec();
         v.set(p2);
         v.subtract(p1);
+        return v;
+    }
+
+    public Vec getCenter() {
+        Vec v = new Vec();
+        v.add(p1);
+        v.add(p2);
+        v.divide(2);
         return v;
     }
 
@@ -280,5 +327,140 @@ class AABB {
         if (other.p1.z() > this.p2.z() || this.p1.z() > other.p2.z())
             return false;
         return true;
+    }
+
+    public boolean isVisibleOnCamera(Camera camera) {
+        return camera.boxVisibility(p1, p2) != Eye.Visibility.INVISIBLE;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AABB)) return false;
+
+        AABB aabb = (AABB) o;
+
+        if (p1 != null ? !p1.equals(aabb.p1) : aabb.p1 != null) return false;
+        return p2 != null ? p2.equals(aabb.p2) : aabb.p2 == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = p1 != null ? p1.hashCode() : 0;
+        result = 31 * result + (p2 != null ? p2.hashCode() : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "AABB{" +
+                "p1=" + p1 +
+                ", p2=" + p2 +
+                ", shape=" + shape +
+                '}';
+    }
+}
+
+class Octree {
+    private AABB root;
+    private Map<AABB, Collection<AABB>> children;
+    private Map<AABB, Collection<AABB>> shapes;
+    private Collection<AABB> included;
+    private Collection<AABB> excluded;
+
+    public Octree(float size, int levels) {
+        root = new AABB(
+                new Vec(-size, -size, -size),
+                new Vec(size, size, size),
+                null);
+        children = new HashMap<>();
+        shapes = new HashMap<>();
+        included = new HashSet<>();
+        excluded = new HashSet<>();
+
+        subdivide(root, ++levels);
+    }
+
+    private void subdivide(AABB node, int levels) {
+        Vec center = node.getCenter();
+        Collection<AABB> subnodes = new ArrayList<>(8);
+        {
+            subnodes.add(new AABB(center, node.getP2()));
+            subnodes.add(new AABB(center, new Vec(node.getP2().x(), node.getP1().y(), node.getP2().z())));
+            subnodes.add(new AABB(center, new Vec(node.getP1().x(), node.getP1().y(), node.getP2().z())));
+            subnodes.add(new AABB(center, new Vec(node.getP1().x(), node.getP2().y(), node.getP2().z())));
+
+            subnodes.add(new AABB(center, node.getP1()));
+            subnodes.add(new AABB(center, new Vec(node.getP1().x(), node.getP2().y(), node.getP1().z())));
+            subnodes.add(new AABB(center, new Vec(node.getP2().x(), node.getP2().y(), node.getP1().z())));
+            subnodes.add(new AABB(center, new Vec(node.getP2().x(), node.getP1().y(), node.getP1().z())));
+        }
+        children.put(node, subnodes);
+        if (--levels > 0)
+            for (AABB child : subnodes) {
+                subdivide(child, levels);
+            }
+    }
+
+    public void addAABB(AABB box) {
+        if (root.collide(box))
+            addAABB(root, box);
+    }
+
+    private void addAABB(AABB node, AABB box) {
+        for (AABB child : children.get(node)) {
+            if (child.collide(box))
+                if (isLeaf(child))
+                    addShapeToLeaf(child, box);
+                else
+                    addAABB(child, box);
+        }
+    }
+
+    public void cull(Camera camera) {
+        included.clear();
+        excluded.clear();
+        for (Collection<AABB> boxes : shapes.values())
+            excluded.addAll(boxes);
+
+        if (root.isVisibleOnCamera(camera))
+            cull(camera, root);
+    }
+
+    private void cull(Camera camera, AABB node) {
+        for (AABB child : children.get(node)) {
+            if (child.isVisibleOnCamera(camera))
+                if (isLeaf(child))
+                    cullLeaf(child);
+                else
+                    cull(camera, child);
+        }
+    }
+
+    public Collection<AABB> getIncluded() {
+        return included;
+    }
+
+    public Collection<AABB> getExcluded() {
+        return excluded;
+    }
+
+    private boolean isLeaf(AABB node) {
+        Collection<AABB> shapes = children.get(node);
+        return shapes == null || shapes.isEmpty();
+    }
+
+    private void addShapeToLeaf(AABB node, AABB box) {
+        shapes.putIfAbsent(node, new LinkedList<>());
+        shapes.get(node).add(box);
+    }
+
+    private void cullLeaf(AABB node) {
+        Collection<AABB> elements = shapes.get(node);
+        if (elements != null) {
+            included.addAll(elements);
+            excluded.removeAll(elements);
+        }
     }
 }
