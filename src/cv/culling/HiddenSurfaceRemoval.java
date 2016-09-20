@@ -189,19 +189,17 @@ public class HiddenSurfaceRemoval extends PApplet {
         boolean useOctree = false;
 
         Camera camera = scene.camera();
-        Collection<PShape> shapesToCull = shapes;
+
         if (useOctree) {
+            for (PShape shape : shapes) {
+                shape.setVisible(false);
+            }
             octree.cull(camera);
-            shapesToCull = new LinkedList<>();
-            for (AABB aabb : octree.getIncluded()) {
-                shapesToCull.add(aabb.getShape());
-            }
-            for (AABB aabb : octree.getExcluded()) {
-                aabb.getShape().setVisible(false);
-            }
         }
 
-        for (PShape shape : shapesToCull) {
+        for (PShape shape : shapes) {
+            if (useOctree && !shape.isVisible())
+                continue;
             shape.setVisible(isShapeVisible(camera, shape));
         }
     }
@@ -365,8 +363,6 @@ class Octree {
     private AABB root;
     private Map<AABB, Collection<AABB>> children;
     private Map<AABB, Collection<AABB>> shapes;
-    private Collection<AABB> included;
-    private Collection<AABB> excluded;
 
     public Octree(float size, int levels) {
         root = new AABB(
@@ -375,8 +371,6 @@ class Octree {
                 null);
         children = new HashMap<>();
         shapes = new HashMap<>();
-        included = new HashSet<>();
-        excluded = new HashSet<>();
 
         subdivide(root, ++levels);
     }
@@ -418,11 +412,6 @@ class Octree {
     }
 
     public void cull(Camera camera) {
-        included.clear();
-        excluded.clear();
-        for (Collection<AABB> boxes : shapes.values())
-            excluded.addAll(boxes);
-
         if (root.isVisibleOnCamera(camera))
             cull(camera, root);
     }
@@ -437,14 +426,6 @@ class Octree {
         }
     }
 
-    public Collection<AABB> getIncluded() {
-        return included;
-    }
-
-    public Collection<AABB> getExcluded() {
-        return excluded;
-    }
-
     private boolean isLeaf(AABB node) {
         Collection<AABB> shapes = children.get(node);
         return shapes == null || shapes.isEmpty();
@@ -457,9 +438,10 @@ class Octree {
 
     private void cullLeaf(AABB node) {
         Collection<AABB> elements = shapes.get(node);
-        if (elements != null) {
-            included.addAll(elements);
-            excluded.removeAll(elements);
+        if (elements == null)
+            return;
+        for (AABB aabb : elements) {
+            aabb.getShape().setVisible(true);
         }
     }
 }
