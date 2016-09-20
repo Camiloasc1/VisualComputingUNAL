@@ -186,9 +186,7 @@ public class HiddenSurfaceRemoval extends PApplet {
     }
 
     private void cull() {
-        boolean useBackface = false;
-        boolean useFrustum = false;
-        boolean useOctree = true;
+        boolean useOctree = false;
 
         Camera camera = scene.camera();
         Collection<PShape> shapesToCull = shapes;
@@ -203,22 +201,23 @@ public class HiddenSurfaceRemoval extends PApplet {
             }
         }
 
-        boolean visible;
         for (PShape shape : shapesToCull) {
-            visible = true;
-
-            // TODO: Back-Face Culling
-            // scene.camera().isFaceFrontFacing(arg0, arg1);
-            if (useBackface)
-                visible &= camera.isFaceFrontFacing(cameraToShape(camera, shape), getShapeNormal(shape));
-
-            // TODO: View Frustum Culling
-            // scene.camera().boxVisibility(arg0, arg1);
-            if (useFrustum)
-                visible &= scene.camera().boxVisibility(aabbs.get(shape).getP1(), aabbs.get(shape).getP2()) != Eye.Visibility.INVISIBLE;
-
-            shape.setVisible(visible);
+            shape.setVisible(isShapeVisible(camera, shape));
         }
+    }
+
+    private boolean isShapeVisible(Camera camera, PShape shape) {
+        // TODO: Back-Face Culling
+        // scene.camera().isFaceFrontFacing(arg0, arg1);
+        if (camera.isFaceBackFacing(cameraToShape(camera, shape), getShapeNormal(shape)))
+            return false;
+
+        // TODO: View Frustum Culling
+        // scene.camera().boxVisibility(arg0, arg1);
+        if (scene.camera().boxVisibility(aabbs.get(shape).getP1(), aabbs.get(shape).getP2()) == Eye.Visibility.INVISIBLE)
+            return false;
+
+        return true;
     }
 
     private Vec getShapeNormal(PShape shape) {
