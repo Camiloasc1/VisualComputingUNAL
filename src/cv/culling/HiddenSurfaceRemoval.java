@@ -236,7 +236,7 @@ public class HiddenSurfaceRemoval extends PApplet {
         Vec v;
 //        v = Scene.toVec(getShapeCenter(shape));
         v = Scene.toVec(shape.getVertex(0));
-        v.subtract(camera.position());
+//        v.subtract(camera.position()); Not needed!!!
         return v;
     }
 }
