@@ -6,6 +6,7 @@ import processing.opengl.PShader;
 
 public class Shader extends PApplet {
 
+    public static final float SPEED = 100f;
     private static int WIDTH = 600;
     private static int HEIGHT = 600;
 
@@ -48,6 +49,7 @@ public class Shader extends PApplet {
         pushMatrix();
         {
             translate(WIDTH * 1f / 4f, HEIGHT / 2);
+            rotateY(frameCount / SPEED);
             sphere(100);
         }
         popMatrix();
@@ -64,6 +66,7 @@ public class Shader extends PApplet {
         pushMatrix();
         {
             translate(WIDTH * 3f / 4f, HEIGHT / 2);
+            rotateY(frameCount / SPEED);
             sphere(100);
         }
         popMatrix();
