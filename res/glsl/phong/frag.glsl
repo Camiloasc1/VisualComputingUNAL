@@ -30,7 +30,19 @@ vec3 diffuseLight(vec3 L, vec3 N, vec3 light) {
     return matDiffuse * light * intensity;
 }
 
-vec3 specularLight(vec3 L, vec3 N, vec3 V, vec3 light) {
+
+//Phong
+vec3 specularLight(vec3 L, vec3 N, vec3 V, vec3 light){
+    if(dot(L, N) > 0) {
+        vec3 R = reflect(-L, N);
+        float intensity = pow(max(0.0, dot(R, V)), matShininess);
+        return matSpecular * light * intensity;
+    }
+    return vec3(0,0,0);
+}
+
+//Blinn–Phong
+vec3 specularLight2(vec3 L, vec3 N, vec3 V, vec3 light){
     if(dot(L, N) > 0) {
         vec3 H = normalize(L + V);
         float intensity = pow(dot(N, H), matShininess);

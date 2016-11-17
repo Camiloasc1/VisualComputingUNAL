@@ -34,17 +34,23 @@ public class Shader extends PApplet {
         background(0);
         noStroke();
 
-        ambientLight(128, 128, 128);
-        pointLight(255, 255, 255, width / 2, height, 0);
-        pointLight(255, 255, 255, width / 2, height / 2, 200);
+        ambientLight(255, 255, 255);
+        pointLight(255, 255, 255, width / 2, height / 2, 0);
+        lightSpecular(255, 255, 255);
+        pointLight(255, 255, 255, width / 2, 0, 200);
 
-        sphereDetail(4);
+        int detail = mouseY / 10 + 3;
+        float shininess = mouseX / 25 + 0.1f;
+        surface.setTitle("Detail: " + detail + '\t' + "Shininess: " + shininess);
+
+        sphereDetail(detail);
 
         shader(flatShader);
         flatShader.set("matAmbient", new PVector(1, 0, 0));
         flatShader.set("matDiffuse", new PVector(0, 1, 0));
         flatShader.set("matSpecular", new PVector(0, 0, 1));
-        flatShader.set("matShininess", 4f);
+        flatShader.set("matShininess", shininess);
+        phongShader.set("cameraPosition", new PVector(WIDTH / 2, HEIGHT / 2, 465));
 
         pushMatrix();
         {
@@ -61,7 +67,8 @@ public class Shader extends PApplet {
         phongShader.set("matAmbient", new PVector(1, 0, 0));
         phongShader.set("matDiffuse", new PVector(0, 1, 0));
         phongShader.set("matSpecular", new PVector(0, 0, 1));
-        phongShader.set("matShininess", 4f);
+        phongShader.set("matShininess", shininess);
+        phongShader.set("cameraPosition", new PVector(WIDTH / 2, HEIGHT / 2, 465));
 
         pushMatrix();
         {
